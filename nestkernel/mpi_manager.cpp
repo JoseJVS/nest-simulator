@@ -744,7 +744,9 @@ nest::MPIManager::communicate_Allgather( std::vector< long >& buffer )
 void
 nest::MPIManager::communicate_Alltoall_( void* send_buffer, void* recv_buffer, const unsigned int send_recv_count )
 {
-  MPI_Alltoall( send_buffer, send_recv_count, MPI_UNSIGNED, recv_buffer, send_recv_count, MPI_UNSIGNED, comm );
+  MPI_Request request;
+  MPI_Ialltoall( send_buffer, send_recv_count, MPI_UNSIGNED, recv_buffer, send_recv_count, MPI_UNSIGNED, comm, &request);
+  MPI_Wait(&request, MPI_STATUS_IGNORE);
 }
 
 void
@@ -755,7 +757,8 @@ nest::MPIManager::communicate_Alltoallv_( void* send_buffer,
   const int* recv_counts,
   const int* recv_displacements )
 {
-  MPI_Alltoallv( send_buffer,
+  MPI_Request request;
+  MPI_Ialltoallv( send_buffer,
     send_counts,
     send_displacements,
     MPI_UNSIGNED,
@@ -763,7 +766,9 @@ nest::MPIManager::communicate_Alltoallv_( void* send_buffer,
     recv_counts,
     recv_displacements,
     MPI_UNSIGNED,
-    comm );
+    comm,
+    &request);
+  MPI_Wait(&request, MPI_STATUS_IGNORE);
 }
 
 void
