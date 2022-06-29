@@ -354,19 +354,13 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
     // otherwise
     gather_completed_checker_[ tid ].set_true();
 
-#pragma omp single
+    if ( kernel().mpi_manager.adaptive_spike_buffers() and buffer_size_spike_data_has_changed_ )
     {
-      if ( kernel().mpi_manager.adaptive_spike_buffers() and buffer_size_spike_data_has_changed_ )
-      {
-        resize_send_recv_buffers_spike_data_();
-        buffer_size_spike_data_has_changed_ = false;
-      }
-    } // of omp single; implicit barrier
-#ifdef TIMER_DETAILED
-    if ( tid == 0 )
-    {
-      sw_collocate_spike_data_.start();
+      resize_send_recv_buffers_spike_data_();
+      buffer_size_spike_data_has_changed_ = false;
     }
+#ifdef TIMER_DETAILED
+    sw_collocate_spike_data_.start();
 #endif
 
     // Need to get new positions in case buffer size has changed
@@ -385,7 +379,6 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
       gather_completed_checker_[ tid ].logical_and( collocate_completed_off_grid );
     }
 
-#pragma omp barrier
     // Set markers to signal end of valid spikes, and remove spikes
     // from register that have been collected in send buffer.
     set_end_and_invalid_markers_( assigned_ranks, send_buffer_position, send_buffer );
@@ -397,68 +390,35 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
     {
       // Needs to be called /after/ set_end_and_invalid_markers_.
       set_complete_marker_spike_data_( assigned_ranks, send_buffer_position, send_buffer );
-#pragma omp barrier
     }
 
 #ifdef TIMER_DETAILED
-    if ( tid == 0 )
-    {
-      sw_collocate_spike_data_.stop();
-      sw_communicate_spike_data_.start();
-    }
+    sw_collocate_spike_data_.stop();
+    sw_communicate_spike_data_.start();
 #endif
 
-// Communicate spikes using a single thread.
-#pragma omp single
+    if ( off_grid_spiking_ )
     {
-      if ( off_grid_spiking_ )
-      {
-        kernel().mpi_manager.communicate_off_grid_spike_data_Alltoall( send_buffer, recv_buffer );
-      }
-      else
-      {
-        kernel().mpi_manager.communicate_spike_data_Alltoall( send_buffer, recv_buffer );
-      }
-    } // of omp single; implicit barrier
-
-#ifdef TIMER_DETAILED
-    if ( tid == 0 )
-    {
-      sw_communicate_spike_data_.stop();
-      sw_deliver_spike_data_.start();
+      kernel().mpi_manager.communicate_off_grid_spike_data_Alltoall( send_buffer, recv_buffer );
     }
-#endif
-
-    // Deliver spikes from receive buffer to ring buffers.
-    const bool deliver_completed = deliver_events_( tid, recv_buffer );
-    gather_completed_checker_[ tid ].logical_and( deliver_completed );
-
-#ifdef TIMER_DETAILED
-    if ( tid == 0 )
+    else
     {
-      sw_deliver_spike_data_.stop();
+      kernel().mpi_manager.communicate_spike_data_Alltoall( send_buffer, recv_buffer );
     }
-#endif
 
     // Resize mpi buffers, if necessary and allowed.
     if ( gather_completed_checker_.any_false() and kernel().mpi_manager.adaptive_spike_buffers() )
     {
-#pragma omp single
-      {
-        buffer_size_spike_data_has_changed_ = kernel().mpi_manager.increase_buffer_size_spike_data();
-        decrease_buffer_size_spike_data_ = false;
-      }
+      buffer_size_spike_data_has_changed_ = kernel().mpi_manager.increase_buffer_size_spike_data();
+      decrease_buffer_size_spike_data_ = false;
     }
 
   } // of while
 
-#pragma omp single
-  {
     if ( decrease_buffer_size_spike_data_ and kernel().mpi_manager.adaptive_spike_buffers() )
     {
       kernel().mpi_manager.decrease_buffer_size_spike_data();
     }
-  } // of omp single; implicit barrier
 
   reset_spike_register_( tid );
 }
