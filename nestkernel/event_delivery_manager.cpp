@@ -406,6 +406,19 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
       kernel().mpi_manager.communicate_spike_data_Alltoall( send_buffer, recv_buffer );
     }
 
+#ifdef TIMER_DETAILED
+    sw_communicate_spike_data_.stop();
+    sw_deliver_spike_data_.start();
+#endif
+
+    // Deliver spikes from receive buffer to ring buffers.
+    const bool deliver_completed = deliver_events_( tid, recv_buffer );
+    gather_completed_checker_[ tid ].logical_and( deliver_completed );
+
+#ifdef TIMER_DETAILED
+    sw_deliver_spike_data_.stop();
+#endif
+
     // Resize mpi buffers, if necessary and allowed.
     if ( gather_completed_checker_.any_false() and kernel().mpi_manager.adaptive_spike_buffers() )
     {

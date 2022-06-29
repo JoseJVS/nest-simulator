@@ -788,27 +788,6 @@ nest::SimulationManager::update_()
 
     do
     {
-  #ifdef TIMER_DETAILED
-      sw_communicate_spike_data_.stop();
-      sw_deliver_spike_data_.start();
-  #endif
-      auto delivery = kerne().event_delivery_manager
-      if (delivery.off_grid_spiking_)
-      {
-        std::vector< SpikeDataT >& recv_buffer = delivery.recv_buffer_off_grid_spike_data_;
-      }
-      else
-      {
-        std::vector< SpikeDataT >& recv_buffer = delivery.recv_buffer_spike_data_;
-      }
-
-      // Deliver spikes from receive buffer to ring buffers.
-      const bool deliver_completed = deliver_events_( tid, recv_buffer );
-      delivery.gather_completed_checker_[ tid ].logical_and( deliver_completed );
-
-  #ifdef TIMER_DETAILED
-      sw_deliver_spike_data_.stop();
-  #endif
       if ( print_time_ )
       {
         gettimeofday( &t_slice_begin_, NULL );
