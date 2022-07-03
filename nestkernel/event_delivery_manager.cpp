@@ -339,8 +339,6 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
   std::vector< SpikeDataT >& send_buffer,
   std::vector< SpikeDataT >& recv_buffer )
 {
-  std::ostringstream os;
-
   // Assume all threads have some work to do
   // gather_completed_checker_[ tid ].set_false();
   // assert( gather_completed_checker_.all_false() );
@@ -351,7 +349,7 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
   // Assume a single gather round
   decrease_buffer_size_spike_data_ = true;
 
-  os << std::endl << "In gather_spike_data_";
+  LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before while" );
   while ( !complete ) // gather_completed_checker_.any_false() )
   {
     // Assume this is the last gather round and change to false
@@ -361,7 +359,7 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
 
     if ( kernel().mpi_manager.adaptive_spike_buffers() and buffer_size_spike_data_has_changed_ )
     {
-      os << std::endl << "Before resize_send_recv_buffers_spike_data_";
+      LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before resize_send_recv_buffers_spike_data_" );
       resize_send_recv_buffers_spike_data_();
       buffer_size_spike_data_has_changed_ = false;
     }
@@ -372,7 +370,7 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
     SendBufferPosition send_buffer_position(
       assigned_ranks, kernel().mpi_manager.get_send_recv_count_spike_data_per_rank() );
 
-    os << std::endl << "Before collocate_spike_data_buffers_";
+    LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before collocate_spike_data_buffers_" );
     // Collocate spikes to send buffer
     const bool collocate_completed =
       collocate_spike_data_buffers_( tid, assigned_ranks, send_buffer_position, spike_register_, send_buffer );
@@ -380,14 +378,14 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
 
     if ( off_grid_spiking_ )
     {
-      os << std::endl << "Before off_grid collocate_spike_data_buffers_";
+      LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before off_grid collocate_spike_data_buffers_" );
       const bool collocate_completed_off_grid = collocate_spike_data_buffers_(
         tid, assigned_ranks, send_buffer_position, off_grid_spike_register_, send_buffer );
       complete &=  collocate_completed_off_grid;
     }
 
 
-    os << std::endl << "Before set_end_and_invalid_markers_";
+    LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before set_end_and_invalid_markers_" );
     // Set markers to signal end of valid spikes, and remove spikes
     // from register that have been collected in send buffer.
     set_end_and_invalid_markers_( assigned_ranks, send_buffer_position, send_buffer );
@@ -397,7 +395,7 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
     // send buffer.
     if ( complete )
     {
-      os << std::endl << "Before set_complete_marker_spike_data_";
+      LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before set_complete_marker_spike_data_" );
       // Needs to be called /after/ set_end_and_invalid_markers_.
       set_complete_marker_spike_data_( assigned_ranks, send_buffer_position, send_buffer );
     }
@@ -410,12 +408,12 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
 // Communicate spikes using a single thread.
     if ( off_grid_spiking_ )
     {
-      os << std::endl << "Before communicate_off_grid_spike_data_Alltoall";
+      LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before communicate_off_grid_spike_data_Alltoall" );
       kernel().mpi_manager.communicate_off_grid_spike_data_Alltoall( send_buffer, recv_buffer );
     }
     else
     {
-      os << std::endl << "Before communicate_spike_data_Alltoall";
+      LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before communicate_spike_data_Alltoall" );
       kernel().mpi_manager.communicate_spike_data_Alltoall( send_buffer, recv_buffer );
     }
 
@@ -424,7 +422,7 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
     sw_deliver_spike_data_.start();
 #endif
 
-    os << std::endl << "Before deliver_events_";
+    LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before deliver_events_" );
     // Deliver spikes from receive buffer to ring buffers.
     const bool deliver_completed = deliver_events_( tid, recv_buffer );
     complete &= deliver_completed;
@@ -436,7 +434,7 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
     // Resize mpi buffers, if necessary and allowed.
     if ( !complete and kernel().mpi_manager.adaptive_spike_buffers() )
     {
-      os << std::endl << "Before increase_buffer_size_spike_data";
+      LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before increase_buffer_size_spike_data" );
       buffer_size_spike_data_has_changed_ = kernel().mpi_manager.increase_buffer_size_spike_data();
       decrease_buffer_size_spike_data_ = false;
     }
@@ -445,13 +443,12 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
 
   if ( decrease_buffer_size_spike_data_ and kernel().mpi_manager.adaptive_spike_buffers() )
   {
-    os << std::endl << "Before decrease_buffer_size_spike_data";
+    LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before decrease_buffer_size_spike_data" );
     kernel().mpi_manager.decrease_buffer_size_spike_data();
   }
 
+  LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", "Before reset_spike_register_" );
   reset_spike_register_( tid );
-
-  LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", os.str() );
 }
 
 template < typename TargetT, typename SpikeDataT >
