@@ -388,6 +388,9 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
     {
       const AssignedRanks assigned_ranks = kernel().vp_manager.get_assigned_ranks( _tid );
 
+      SendBufferPosition send_buffer_position(
+        assigned_ranks, kernel().mpi_manager.get_send_recv_count_spike_data_per_rank() );
+
       // Set markers to signal end of valid spikes, and remove spikes
       // from register that have been collected in send buffer.
       set_end_and_invalid_markers_( assigned_ranks, send_buffer_position, send_buffer );
