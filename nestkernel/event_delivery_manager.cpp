@@ -450,6 +450,8 @@ EventDeliveryManager::gather_spike_data_( const thread tid,
   }
 
   reset_spike_register_( tid );
+
+  LOG( M_INFO, "EventDeliveryManager::gather_spike_data_", os.str() );
 }
 
 template < typename TargetT, typename SpikeDataT >
