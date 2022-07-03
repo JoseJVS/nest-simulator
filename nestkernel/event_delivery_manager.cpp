@@ -469,7 +469,8 @@ EventDeliveryManager::collocate_spike_data_buffers_( const thread tid,
             iiit < ( *it )[ tid ][ lag ].end();
             ++iiit )
       {
-        assert( not iiit->is_processed() );
+        if (iiit->is_processed())
+          break;
 
         const thread rank = iiit->get_rank();
 
