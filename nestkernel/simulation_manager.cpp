@@ -1002,14 +1002,11 @@ nest::SimulationManager::update_()
         {
           if ( kernel().connection_manager.has_primary_connections() )
           {
-            for (thread _tid = 0; _tid < kernel().vp_manager.get_num_threads(); ++_tid)
-              kernel().event_delivery_manager.gather_spike_data( _tid );
+            kernel().event_delivery_manager.gather_spike_data( tid );
           }
           if ( kernel().connection_manager.secondary_connections_exist() )
           {
-            {
-              kernel().event_delivery_manager.gather_secondary_events( true );
-            }
+            kernel().event_delivery_manager.gather_secondary_events( true );
             for (thread _tid = 0; _tid < kernel().vp_manager.get_num_threads(); ++_tid)
               kernel().event_delivery_manager.deliver_secondary_events( _tid, false );
           }
