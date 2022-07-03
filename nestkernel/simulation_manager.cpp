@@ -974,6 +974,38 @@ nest::SimulationManager::update_()
 
 // parallel section ends, wait until all threads are done -> synchronize
 #pragma omp barrier
+#ifdef TIMER_DETAILED
+      if ( tid == 0 )
+      {
+        sw_update_.stop();
+        sw_gather_spike_data_.start();
+      }
+#endif
+
+      // gather and deliver only at end of slice, i.e., end of min_delay step
+      if ( to_step_ == kernel().connection_manager.get_min_delay() )
+      {
+        if ( kernel().connection_manager.has_primary_connections() )
+        {
+          kernel().event_delivery_manager.gather_spike_data( tid );
+        }
+        if ( kernel().connection_manager.secondary_connections_exist() )
+        {
+#pragma omp single
+          {
+            kernel().event_delivery_manager.gather_secondary_events( true );
+          }
+          kernel().event_delivery_manager.deliver_secondary_events( tid, false );
+        }
+      }
+
+#pragma omp barrier
+#ifdef TIMER_DETAILED
+      if ( tid == 0 )
+      {
+        sw_gather_spike_data_.stop();
+      }
+#endif
 
 // the following block is executed by the master thread only
 // the other threads are enforced to wait at the end of the block
@@ -987,34 +1019,6 @@ nest::SimulationManager::update_()
           print_progress_();
         }
 
-#ifdef TIMER_DETAILED
-        sw_update_.stop();
-        sw_gather_spike_data_.start();
-#endif
-
-        // gather and deliver only at end of slice, i.e., end of min_delay step
-        if ( to_step_ == kernel().connection_manager.get_min_delay() )
-        {
-          for (thread _tid = 0; _tid < kernel().vp_manager.get_num_threads(); ++_tid)
-          {
-            if ( kernel().connection_manager.has_primary_connections() )
-            {
-              kernel().event_delivery_manager.gather_spike_data( _tid );
-            }
-            if ( kernel().connection_manager.secondary_connections_exist() )
-            {
-              {
-                kernel().event_delivery_manager.gather_secondary_events( true );
-              }
-              kernel().event_delivery_manager.deliver_secondary_events( _tid, false );
-            }
-          }
-        }
-
-#ifdef TIMER_DETAILED
-        sw_gather_spike_data_.stop();
-#endif
-
         // We cannot throw exception inside master, would not get caught.
         const double end_current_update = sw_simulate_.elapsed();
         const double update_time = end_current_update - start_current_update;
@@ -1025,11 +1029,9 @@ nest::SimulationManager::update_()
       }
 // end of master section, all threads have to synchronize at this point
 #pragma omp barrier
-#ifdef HAVE_SIONLIB
       kernel().io_manager.post_step_hook();
 // enforce synchronization after post-step activities of the recording backends
 #pragma omp barrier
-#endif
       const double end_current_update = sw_simulate_.elapsed();
       if ( end_current_update - start_current_update > update_time_limit_ )
       {
