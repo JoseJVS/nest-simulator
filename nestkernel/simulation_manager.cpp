@@ -889,6 +889,7 @@ nest::SimulationManager::update_()
           if ( kernel().connection_manager.has_primary_connections() )
           {
 #ifdef TIMER_DETAILED
+#pragma omp barrier
             if ( tid == 0 )
             {
               sw_deliver_spike_data_.start();
@@ -898,6 +899,7 @@ nest::SimulationManager::update_()
             kernel().event_delivery_manager.deliver_events( tid );
 
 #ifdef TIMER_DETAILED
+#pragma omp barrier
             if ( tid == 0 )
             {
               sw_deliver_spike_data_.stop();
